@@ -243,6 +243,8 @@
                     playedIds.push(id);
                     localStorage.setItem('played_songs', JSON.stringify(playedIds));
                 }
+                
+                // Перед рендером запоминаем, какие панели открыты
                 renderSongs();
                 
                 const { error } = await supabaseClient
@@ -277,9 +279,7 @@
 
         window.toggleLyrics = (id) => {
             const panel = document.getElementById(`lyrics-${id}`);
-            // Переключаем класс 'show' только для текущей панели, не трогая остальные
             panel.classList.toggle('show');
-            // Автоскроллинг удален
         };
 
         window.openEditModal = (id = null) => {
@@ -357,9 +357,15 @@
                 return;
             }
 
+            // Запоминаем ID всех открытых в данный момент панелей
+            const openedPanels = Array.from(document.querySelectorAll('.lyrics-panel.show')).map(p => p.id.replace('lyrics-', ''));
+
             songListContainer.innerHTML = songs.map(s => {
                 const isActive = activeSongId == s.id;
                 const isPlayed = playedIds.includes(s.id);
+                // Проверяем, была ли эта панель открыта до рендера
+                const isPanelOpen = openedPanels.includes(String(s.id));
+
                 return `
                 <div class="song-row ${isActive ? 'active' : ''} ${isPlayed ? 'played' : ''}" data-id="${s.id}">
                     <div class="flex items-center px-3 py-0.5 gap-2">
@@ -383,7 +389,7 @@
                             </button>
                         </div>
                     </div>
-                    <div id="lyrics-${s.id}" class="lyrics-panel border-t border-white/5">
+                    <div id="lyrics-${s.id}" class="lyrics-panel border-t border-white/5 ${isPanelOpen ? 'show' : ''}">
                         <div class="p-4">
                             <pre class="text-[16px] leading-relaxed text-slate-300 whitespace-pre-wrap font-mono select-text">${s.lyrics || 'Нет текста'}</pre>
                         </div>
@@ -393,15 +399,6 @@
         }
 
         window.addEventListener('DOMContentLoaded', refreshData);
-    </script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('SW registered!', reg))
-            .catch(err => console.log('SW failed!', err));
-        });
-      }
     </script>
 </body>
 
