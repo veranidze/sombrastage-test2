@@ -75,15 +75,15 @@
         <div class="w-full h-full bg-emerald-500 origin-left animate-loader"></div>
     </div>
 
-    <header class="glass relative z-40 px-4 py-3 mb-2">
+    <header class="glass relative z-40 px-4 py-2 mb-2">
         <div class="max-w-xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-2">
                 <div class="bg-emerald-600/20 p-1.5 rounded-lg text-emerald-500 border border-emerald-500/30">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
                 </div>
-                <h1 class="font-black text-lg tracking-tighter uppercase italic text-white">BandFlow</h1>
+                <h1 class="font-black text-base tracking-tighter uppercase italic text-white">BandFlow</h1>
             </div>
-            <button onclick="resetPlayed()" class="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors active:scale-95">Reset</button>
+            <button onclick="resetPlayed()" class="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[8px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors active:scale-95">Reset</button>
         </div>
     </header>
 
@@ -92,15 +92,15 @@
     </main>
 
     <div class="fixed bottom-6 right-6 z-40">
-        <button onclick="openEditModal()" class="w-12 h-12 bg-emerald-600 text-white rounded-xl shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+        <button onclick="openEditModal()" class="w-10 h-10 bg-emerald-600 text-white rounded-xl shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
         </button>
     </div>
 
     <div id="status-toast" class="fixed bottom-20 left-0 right-0 z-50 px-6 transition-all duration-400 translate-y-24 opacity-0 pointer-events-none">
-        <div class="max-w-xs mx-auto glass border-emerald-500/50 p-3 rounded-xl flex items-center gap-2 shadow-2xl">
+        <div class="max-w-xs mx-auto glass border-emerald-500/50 p-2 rounded-xl flex items-center gap-2 shadow-2xl">
             <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-            <span id="toast-text" class="font-bold text-[9px] uppercase tracking-widest text-emerald-50"></span>
+            <span id="toast-text" class="font-bold text-[8px] uppercase tracking-widest text-emerald-50"></span>
         </div>
     </div>
 
@@ -162,16 +162,13 @@
                 onStart: () => { isSavingOrder = true; },
                 onEnd: async () => {
                     const rows = Array.from(el.children);
-                    
-                    // Ключевое исправление: передаем ВСЕ обязательные поля (title), 
-                    // чтобы база не ругалась на пустые значения при upsert
                     const updates = rows.map((child, index) => {
                         const songId = child.dataset.id;
                         const originalSong = songs.find(s => s.id === songId);
                         return {
                             id: songId,
                             order: index + 1,
-                            title: originalSong ? originalSong.title : "Untitled", // Передаем title, чтобы избежать ошибки 23502
+                            title: originalSong ? originalSong.title : "Untitled",
                             lyrics: originalSong ? originalSong.lyrics : ""
                         };
                     });
@@ -184,8 +181,6 @@
                         
                         if (error) throw error;
                         showToast("Порядок сохранен");
-                        
-                        // Обновляем локальный массив песен, чтобы данные были актуальны
                         songs = updates.map(u => ({...songs.find(s => s.id === u.id), ...u}));
                     } catch (err) {
                         console.error("Sort Error Details:", err);
@@ -369,24 +364,24 @@
                 const isPlayed = playedIds.includes(s.id);
                 return `
                 <div class="song-row ${isActive ? 'active' : ''} ${isPlayed ? 'played' : ''}" data-id="${s.id}">
-                    <div class="flex items-center px-3 py-1 gap-2">
-                        <div class="drag-handle flex flex-col items-center justify-center w-6 py-1 opacity-20 hover:opacity-100 cursor-grab active:cursor-grabbing">
+                    <div class="flex items-center px-3 py-0.5 gap-2">
+                        <div class="drag-handle flex flex-col items-center justify-center w-6 py-0.5 opacity-20 hover:opacity-100 cursor-grab active:cursor-grabbing">
                             <span class="text-[8px] font-black">${String(s.order || 0).padStart(2, '0')}</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M4 8h16M4 16h16" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M4 8h16M4 16h16" /></svg>
                         </div>
                         
-                        <div class="flex-1 min-w-0 cursor-pointer py-1.5" onclick="toggleLyrics('${s.id}')">
+                        <div class="flex-1 min-w-0 cursor-pointer py-1" onclick="toggleLyrics('${s.id}')">
                             <h2 class="text-[13px] font truncate tracking-tight ${isPlayed && !isActive ? 'opacity-30' : 'text-white'} ${isActive ? 'text-emerald-400' : ''}">
                                 ${s.title}
                             </h2>
                         </div>
 
                         <div class="flex items-center gap-1">
-                            <button onclick="openEditModal('${s.id}')" class="p-1.5 opacity-20 hover:opacity-100 hover:bg-white/5 rounded transition-all">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            <button onclick="openEditModal('${s.id}')" class="p-1 opacity-20 hover:opacity-100 hover:bg-white/5 rounded transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                             </button>
-                            <button onclick="announceSong('${s.id}')" class="p-2 rounded-lg ${isActive ? 'bg-emerald-600 shadow-md' : 'bg-white/5 border border-white/5'} active:scale-90 transition-all">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="${isActive ? 'white' : 'currentColor'}" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            <button onclick="announceSong('${s.id}')" class="p-1.5 rounded-md ${isActive ? 'bg-emerald-600 shadow-md' : 'bg-white/5 border border-white/5'} active:scale-90 transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-2.5 h-2.5" fill="${isActive ? 'white' : 'currentColor'}" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                             </button>
                         </div>
                     </div>
