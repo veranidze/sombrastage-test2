@@ -253,7 +253,7 @@
                 
                 if (error) throw error;
 
-                const message = `⚡️⚡️ <b>СЛЕДУЮЩАЯ ПЕСНЯ:</b>\n🎵 <b>${song.title.toUpperCase()}</b>`;
+                const message = `⚡️ <b>СЛЕДУЮЩАЯ ПЕСНЯ:</b>\n🎵 <b>${song.title.toUpperCase()}</b>`;
                 await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
