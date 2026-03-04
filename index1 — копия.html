@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sombra Stage | Leader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&family=JetBrains+Mono&display=swap');
+
+        :root {
+            --bg-color: #0c0e14;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --accent-color: #10b981;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --played-bg: rgba(16, 185, 129, 0.1);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        .glass {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+        }
+
+        .song-row {
+            transition: all 0.2s ease;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .song-row.played { background: var(--played-bg); }
+
+        .song-row.active {
+            border-left: 3px solid var(--accent-color);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .lyrics-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .lyrics-panel.show { max-height: 2000px; }
+
+        .sortable-ghost { opacity: 0.1; background: var(--accent-color) !important; }
+
+        pre { font-family: 'JetBrains Mono', monospace; }
+
+        @keyframes loader-anim {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .animate-loader { animation: loader-anim 1.5s infinite linear; }
+    </style>
+</head>
+
+<body class="antialiased">
+    <div id="global-loader" class="fixed top-0 left-0 w-full h-[2px] z-50 overflow-hidden bg-white/5 transition-opacity duration-300 opacity-0 pointer-events-none">
+        <div class="w-full h-full bg-emerald-500 origin-left animate-loader"></div>
+    </div>
+
+    <header class="glass relative z-40 px-4 py-3 mb-2">
+        <div class="max-w-xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="bg-emerald-600/20 p-1.5 rounded-lg text-emerald-500 border border-emerald-500/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                </div>
+                <h1 class="font-black text-lg tracking-tighter uppercase italic text-white">BandFlow</h1>
+            </div>
+            <button onclick="resetPlayed()" class="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors active:scale-95">Reset</button>
+        </div>
+    </header>
+
+    <main class="max-w-xl mx-auto pb-32 px-2">
+        <div id="song-list" class="flex flex-col rounded-xl overflow-hidden glass shadow-xl"></div>
+    </main>
+
+    <div class="fixed bottom-6 right-6 z-40">
+        <button onclick="openEditModal()" class="w-12 h-12 bg-emerald-600 text-white rounded-xl shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+        </button>
+    </div>
+
+    <div id="status-toast" class="fixed bottom-20 left-0 right-0 z-50 px-6 transition-all duration-400 translate-y-24 opacity-0 pointer-events-none">
+        <div class="max-w-xs mx-auto glass border-emerald-500/50 p-3 rounded-xl flex items-center gap-2 shadow-2xl">
+            <div class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+            <span id="toast-text" class="font-bold text-[9px] uppercase tracking-widest text-emerald-50"></span>
+        </div>
+    </div>
+
+    <div id="song-modal" class="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] hidden items-end sm:items-center justify-center p-4">
+        <div class="bg-[#12141c] w-full max-w-lg rounded-[24px] border border-white/10 shadow-2xl p-6 max-h-[90vh] overflow-y-auto outline-none">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="modal-title" class="text-lg font-black italic uppercase tracking-wider text-emerald-500">Edit Song</h2>
+                <button id="delete-btn" onclick="deleteCurrentSong()" class="p-2 text-red-500/40 hover:text-red-500 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                </button>
+            </div>
+            <form id="song-form" class="space-y-4">
+                <input type="hidden" id="song-id">
+                <div>
+                    <label class="text-[9px] uppercase font-black tracking-widest text-slate-500 ml-1 mb-1 block">Название</label>
+                    <input type="text" id="input-title" placeholder="Название песни" required class="w-full bg-white/5 rounded-lg px-4 py-3 outline-none border border-white/5 focus:border-emerald-500/50 text-white font-bold text-sm">
+                </div>
+                <div>
+                    <label class="text-[9px] uppercase font-black tracking-widest text-slate-500 ml-1 mb-1 block">Текст и Аккорды</label>
+                    <textarea id="input-lyrics" placeholder="Вставьте текст..." class="w-full bg-white/5 rounded-lg px-4 py-3 h-48 font-mono text-xs outline-none border border-white/5 focus:border-emerald-500/50 text-white"></textarea>
+                </div>
+                <div>
+                    <label class="text-[9px] uppercase font-black tracking-widest text-slate-500 ml-1 mb-1 block">Порядковый номер</label>
+                    <input type="number" id="input-order" placeholder="01" class="w-full bg-white/5 rounded-lg px-4 py-3 outline-none border border-white/5 focus:border-emerald-500/50 text-white font-bold text-sm">
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeModal()" class="flex-1 py-3 font-bold text-slate-500 text-sm">Отмена</button>
+                    <button type="submit" id="save-btn" class="flex-[2] py-3 bg-emerald-600 text-white rounded-lg font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        const SUPABASE_URL = 'https://llzpyhmhdbckkiovjiig.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxsenB5aG1oZGJja2tpb3ZqaWlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4Mjc0ODgsImV4cCI6MjA4NjQwMzQ4OH0.NoXKtNS3QtFyv-JLF_bRx_xusBRGWX_EukBgT3Cz4To';
+
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const TG_BOT_TOKEN = "8589462243:AAFKM4TYkNQzGddVbdE7esNUkvwWfsO-SGQ";
+        const TG_CHAT_ID = "-5071925461";
+
+        let songs = [];
+        let activeSongId = null;
+        let playedIds = JSON.parse(localStorage.getItem('played_songs') || '[]');
+        let isSavingOrder = false; 
+
+        const songListContainer = document.getElementById('song-list');
+        const loader = document.getElementById('global-loader');
+        const songModal = document.getElementById('song-modal');
+        const songForm = document.getElementById('song-form');
+
+        function initSortable() {
+            const el = document.getElementById('song-list');
+            if (window.songSortable) window.songSortable.destroy();
+            window.songSortable = Sortable.create(el, {
+                animation: 250,
+                handle: '.drag-handle',
+                ghostClass: 'sortable-ghost',
+                onStart: () => { isSavingOrder = true; },
+                onEnd: async () => {
+                    const rows = Array.from(el.children);
+                    
+                    // Ключевое исправление: передаем ВСЕ обязательные поля (title), 
+                    // чтобы база не ругалась на пустые значения при upsert
+                    const updates = rows.map((child, index) => {
+                        const songId = child.dataset.id;
+                        const originalSong = songs.find(s => s.id === songId);
+                        return {
+                            id: songId,
+                            order: index + 1,
+                            title: originalSong ? originalSong.title : "Untitled", // Передаем title, чтобы избежать ошибки 23502
+                            lyrics: originalSong ? originalSong.lyrics : ""
+                        };
+                    });
+
+                    toggleLoader(true);
+                    try {
+                        const { error } = await supabaseClient
+                            .from('songs')
+                            .upsert(updates, { onConflict: 'id' });
+                        
+                        if (error) throw error;
+                        showToast("Порядок сохранен");
+                        
+                        // Обновляем локальный массив песен, чтобы данные были актуальны
+                        songs = updates.map(u => ({...songs.find(s => s.id === u.id), ...u}));
+                    } catch (err) {
+                        console.error("Sort Error Details:", err);
+                        showToast("Ошибка синхронизации");
+                        refreshData();
+                    } finally {
+                        toggleLoader(false);
+                        isSavingOrder = false; 
+                    }
+                }
+            });
+        }
+
+        async function refreshData() {
+            if (isSavingOrder) return;
+            toggleLoader(true);
+            try {
+                const { data: songsData, error: songsError } = await supabaseClient
+                    .from('songs').select('*').order('order', { ascending: true });
+                
+                const { data: statusData } = await supabaseClient
+                    .from('status').select('active_song_id').eq('id', 1).maybeSingle();
+
+                if (songsError) throw songsError;
+
+                songs = songsData || [];
+                activeSongId = statusData?.active_song_id || null;
+                renderSongs();
+                initSortable();
+            } catch (err) {
+                console.error("Load Error:", err);
+                showToast("Ошибка загрузки");
+            } finally {
+                toggleLoader(false);
+            }
+        }
+
+        supabaseClient
+            .channel('db-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'songs' }, () => {
+                if (!isSavingOrder) refreshData();
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'status' }, (payload) => {
+                activeSongId = payload.new.active_song_id;
+                renderSongs();
+            })
+            .subscribe();
+
+        window.announceSong = async (id) => {
+            const song = songs.find(s => s.id == id);
+            if (!song) return;
+            
+            toggleLoader(true);
+            try {
+                activeSongId = id;
+                if (!playedIds.includes(id)) {
+                    playedIds.push(id);
+                    localStorage.setItem('played_songs', JSON.stringify(playedIds));
+                }
+                renderSongs();
+                
+                const { error } = await supabaseClient
+                    .from('status')
+                    .upsert({ id: 1, active_song_id: id });
+                
+                if (error) throw error;
+
+                const message = `⚡️⚡️ <b>СЛЕДУЮЩАЯ ПЕСНЯ:</b>\n🎵 <b>${song.title.toUpperCase()}</b>`;
+                await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: TG_CHAT_ID, text: message, parse_mode: 'HTML' })
+                });
+                
+                showToast(`В эфире: ${song.title}`);
+            } catch (err) { 
+                showToast("Ошибка вещания");
+            } finally {
+                toggleLoader(false);
+            }
+        };
+
+        window.resetPlayed = () => {
+            if (confirm('Сбросить статус исполненных песен?')) {
+                playedIds = [];
+                localStorage.setItem('played_songs', '[]');
+                renderSongs();
+                showToast("Статусы сброшены");
+            }
+        };
+
+        window.toggleLyrics = (id) => {
+            const panel = document.getElementById(`lyrics-${id}`);
+            const isShowing = panel.classList.contains('show');
+            document.querySelectorAll('.lyrics-panel').forEach(p => p.classList.remove('show'));
+            if (!isShowing) {
+                panel.classList.add('show');
+                setTimeout(() => {
+                    panel.parentElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            }
+        };
+
+        window.openEditModal = (id = null) => {
+            const song = id ? songs.find(s => s.id == id) : { title: '', lyrics: '', order: (songs.length + 1) };
+            document.getElementById('modal-title').innerText = id ? 'Редактировать' : 'Новая песня';
+            document.getElementById('song-id').value = id || '';
+            document.getElementById('input-title').value = song.title;
+            document.getElementById('input-lyrics').value = song.lyrics || '';
+            document.getElementById('input-order').value = song.order;
+            document.getElementById('delete-btn').classList.toggle('hidden', !id);
+            songModal.classList.remove('hidden');
+            songModal.classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.closeModal = () => {
+            songModal.classList.add('hidden');
+            songModal.classList.remove('flex');
+            document.body.style.overflow = 'auto';
+        };
+
+        window.deleteCurrentSong = async () => {
+            const id = document.getElementById('song-id').value;
+            if (id && confirm('Удалить песню навсегда?')) {
+                toggleLoader(true);
+                try {
+                    await supabaseClient.from('songs').delete().eq('id', id);
+                    closeModal();
+                    await refreshData();
+                    showToast("Удалено");
+                } catch (e) {
+                    showToast("Ошибка удаления");
+                } finally {
+                    toggleLoader(false);
+                }
+            }
+        };
+
+        songForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('song-id').value;
+            const data = {
+                title: document.getElementById('input-title').value.trim(),
+                lyrics: document.getElementById('input-lyrics').value,
+                order: Number(document.getElementById('input-order').value)
+            };
+            toggleLoader(true);
+            try {
+                if (id) await supabaseClient.from('songs').update(data).eq('id', id);
+                else await supabaseClient.from('songs').insert([data]);
+                closeModal();
+                await refreshData();
+                showToast("Сохранено");
+            } catch (err) {
+                showToast("Ошибка сохранения");
+            } finally {
+                toggleLoader(false);
+            }
+        };
+
+        function toggleLoader(show) {
+            if (loader) loader.classList.toggle('opacity-0', !show);
+        }
+
+        function showToast(text) {
+            const toast = document.getElementById('status-toast');
+            document.getElementById('toast-text').innerText = text;
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-24', 'opacity-0'), 2000);
+        }
+
+        function renderSongs() {
+            if (!songs.length) {
+                songListContainer.innerHTML = `<div class="p-8 text-center opacity-40 text-[10px] uppercase font-black tracking-widest">Список пуст</div>`;
+                return;
+            }
+
+            songListContainer.innerHTML = songs.map(s => {
+                const isActive = activeSongId == s.id;
+                const isPlayed = playedIds.includes(s.id);
+                return `
+                <div class="song-row ${isActive ? 'active' : ''} ${isPlayed ? 'played' : ''}" data-id="${s.id}">
+                    <div class="flex items-center px-3 py-1 gap-2">
+                        <div class="drag-handle flex flex-col items-center justify-center w-6 py-1 opacity-20 hover:opacity-100 cursor-grab active:cursor-grabbing">
+                            <span class="text-[8px] font-black">${String(s.order || 0).padStart(2, '0')}</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M4 8h16M4 16h16" /></svg>
+                        </div>
+                        
+                        <div class="flex-1 min-w-0 cursor-pointer py-1.5" onclick="toggleLyrics('${s.id}')">
+                            <h2 class="text-[13px] font truncate tracking-tight ${isPlayed && !isActive ? 'opacity-30' : 'text-white'} ${isActive ? 'text-emerald-400' : ''}">
+                                ${s.title}
+                            </h2>
+                        </div>
+
+                        <div class="flex items-center gap-1">
+                            <button onclick="openEditModal('${s.id}')" class="p-1.5 opacity-20 hover:opacity-100 hover:bg-white/5 rounded transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </button>
+                            <button onclick="announceSong('${s.id}')" class="p-2 rounded-lg ${isActive ? 'bg-emerald-600 shadow-md' : 'bg-white/5 border border-white/5'} active:scale-90 transition-all">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="${isActive ? 'white' : 'currentColor'}" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="lyrics-${s.id}" class="lyrics-panel border-t border-white/5">
+                        <div class="p-4">
+                            <pre class="text-[16px] leading-relaxed text-slate-300 whitespace-pre-wrap font-mono select-text">${s.lyrics || 'Нет текста'}</pre>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        window.addEventListener('DOMContentLoaded', refreshData);
+    </script>
+</body>
+
+</html>
