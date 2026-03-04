@@ -69,7 +69,7 @@
         .animate-loader { animation: loader-anim 1.5s infinite linear; }
     </style>
     <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#000000">
     <link rel="apple-touch-icon" href="icon.png">
 </head>
 
@@ -277,14 +277,9 @@
 
         window.toggleLyrics = (id) => {
             const panel = document.getElementById(`lyrics-${id}`);
-            const isShowing = panel.classList.contains('show');
-            document.querySelectorAll('.lyrics-panel').forEach(p => p.classList.remove('show'));
-            if (!isShowing) {
-                panel.classList.add('show');
-                setTimeout(() => {
-                    panel.parentElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 100);
-            }
+            // Переключаем класс 'show' только для текущей панели, не трогая остальные
+            panel.classList.toggle('show');
+            // Автоскроллинг удален
         };
 
         window.openEditModal = (id = null) => {
